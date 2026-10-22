@@ -1,0 +1,9 @@
+/build/*
+!/build/.gitkeep
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+roblox.yml
+roblox.yaml

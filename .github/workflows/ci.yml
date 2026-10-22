@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same pinned versions as rokit.toml, built from crates.io and cached.
+      - name: Cache tools
+        uses: actions/cache@v4
+        with:
+          path: ~/wl-tools
+          key: tools-${{ runner.os }}-rojo7.7.1-lune0.11.0-selene0.31.0-stylua2.6.0
+
+      - name: Install tools
+        run: |
+          TOOLS_ROOT="$HOME/wl-tools"
+          mkdir -p "$TOOLS_ROOT"
+          echo "$TOOLS_ROOT/bin" >> "$GITHUB_PATH"
+          export PATH="$TOOLS_ROOT/bin:$PATH"
+          command -v rojo || cargo install rojo --version 7.7.1 --locked --root "$TOOLS_ROOT"
+          command -v lune || cargo install lune --version 0.11.0 --locked --root "$TOOLS_ROOT"
+          command -v selene || cargo install selene --version 0.31.0 --locked --root "$TOOLS_ROOT"
+          command -v stylua || cargo install stylua --version 2.6.0 --locked --features luau --root "$TOOLS_ROOT"
+
+      - name: Format
+        run: stylua --check src tests scripts
+
+      - name: Lint
+        run: selene src tests
+
+      - name: Unit and contract tests
+        run: lune run scripts/test.luau
+
+      - name: Roblox smoke test
+        run: lune run scripts/smoke.luau
+
+      - name: Build place
+        run: rojo build default.project.json --output build/whisperlatch.rbxlx
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whisperlatch-place
+          path: build/whisperlatch.rbxlx
