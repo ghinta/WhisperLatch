@@ -3,9 +3,27 @@
 > **Two players. Two rooms. One shared solution.** One player knows the clue, the other controls the lock.
 
 **Project:** Roblox asymmetric co-op escape game / single repository  
-**Status:** Pre-production specification — README only; no runnable game is included.  
+**Status:** MVP v0.1 — playable source for 2 players and 5 rooms. Verified by automated tests, a Roblox smoke test and a Rojo build outside Studio; the first live Studio playtest with two clients is still pending.  
 **Working title:** `WhisperLatch` (preliminary web name screening only; **not** legally trademark-cleared).  
 **Inspiration:** Asymmetric cooperative information puzzles as a broad genre (for example *We Were Here*); **no** copied puzzles, rooms, art, symbols, scripts, dialogue or branding.
+
+## 0. Quick start (MVP)
+
+1. Install [Rokit](https://github.com/rojo-rbx/rokit), then run `rokit install` in the repository (installs the pinned Rojo, Lune, Selene and StyLua from `rokit.toml`).
+2. Build a place file and open it in Roblox Studio:
+   `rojo build default.project.json --output build/whisperlatch.rbxlx`
+   For live development use `rojo serve` and connect the Rojo Studio plugin instead.
+3. In Studio choose **Test → Clients and Servers** with **2 players**. Both players press **„Partner suchen“** in the lobby.
+4. The server pairs them, assigns roles and teleports each player into their **own** enclosed chamber. Each player only sees their own room and role UI.
+5. Optional: *Game Settings → Security → Enable Studio Access to API Services* to save progress (the game runs without it), and *Max Players* 12 for 6 parallel pairs.
+
+| Input | Desktop | Mobile |
+|---|---|---|
+| Move | WASD + mouse | Thumbstick |
+| Interact (clue wall, symbol table, console, check pedestal) | `E` at the prompt | Tap the prompt |
+| Read the clue / operate controls | Role panel on the right of the HUD; mirrored on the chamber wall | Tap |
+| Communicate | Ping wheel on the left (status, symbols, numbers, rules) or Roblox chat | Tap |
+| Hint / reset room / leave | Buttons top left | Tap |
 
 ## 1. Game concept
 
@@ -34,11 +52,13 @@
 
 | Room | Seer observes | Tinkerer operates | Validation |
 |---|---|---|---|
-| 1. Glyph Gate | A 3-symbol ordered sequence | 3 rotating glyph dials | Correct sequence |
-| 2. Circuit Split | A small wiring rule diagram | 4 on/off switches | Boolean rule matches |
-| 3. Mirror Clocks | A relative-order clue | 3 clock hands | Correct positions |
-| 4. Pattern Relay | A shape transformation rule | Colored tile grid | Exact resulting pattern |
-| 5. Dual Reactor | A short sequence with two stages | Buttons and one timing gate | Two-stage state machine |
+| 1. Glyph Gate (*Glyphentor*) | A 3-symbol ordered sequence | 3 rotating glyph dials | Correct sequence |
+| 2. Circuit Split (*Schaltkreis*) | A small rule diagram: one anchor („▲ ist AN“) plus same/opposite relations that allow exactly one combination | 4 glyph-labelled on/off switches | Boolean rule matches |
+| 3. Mirror Clocks (*Spiegeluhren*) | The three clocks as seen in a mirror: order reversed, hands mirrored | 3 clock hands (hour dials) | Correct real positions |
+| 4. Pattern Relay (*Musterfeld*) | A shape transformation rule (rotate/mirror, optionally swap ☀/☾) | 3×3 tile grid; only the Tinkerer sees the reference pattern | Exact resulting pattern |
+| 5. Dual Reactor (*Doppelreaktor*) | Ignition sequence plus a table „core → stabilisation sequence“ | 4 glyph buttons and a gate lever; after stage 1 only the Tinkerer sees the core symbol | Two-stage state machine |
+
+All puzzles are generated per session from a seeded PRNG and are verified solvable by tests. The Dual Reactor's "timing gate" is a lever without time pressure (see MVP rule below).
 
 **MVP rule:** Prefer deterministic interactions and small finite puzzle states. Avoid physics-heavy movable objects, timed death traps, and arbitrary hidden objectives. Each room must have a restart option and a finite hint progression.
 
@@ -50,18 +70,29 @@
 - Color clues also carry shape/name labels for accessibility.
 - On partner disconnect: freeze the chamber, keep a temporary checkpoint, offer to requeue or leave. Implement reconnection handling; **never** permanently trap the remaining player.
 
+### Visual design (derived from the concept art)
+
+The two concept images (`ChatGPT-Bild …png`) show **both players side by side** for illustration only. In the game each player is teleported into their own fully enclosed chamber and sees only their own room and role HUD: chamber pairs are 200 studs apart, rooms are closed boxes, camera zoom is capped at 22 studs.
+
+- **Seer chamber:** warm amber candle light, wood and brick, the *Hinweiswand* (clue wall) with the secret clue, a symbol table with the glyph legend, bookshelves, notes, rug.
+- **Tinkerer chamber:** cyan neon, metal and copper pipes, the *Steuerwand* with the controls, a console, the check pedestal („Lösung prüfen“) and a switch box.
+- **Shared wall:** a chained, locked exit door (*Ausgang*). It opens when the room is solved — the only moment the players see each other — then roles swap and the next room starts.
+- **HUD:** role card top right („Deine Rolle: Seher/Tüftler“), room title and timer top centre, the role panel on the right, hints and the ping wheel on the left. Dark panels, amber accents for the Seer, cyan for the Tinkerer, serif titles. Scales down for phones.
+- **Local-only panels:** the clue and control panels on the chamber walls are rendered by each client (`SurfaceGui` in `PlayerGui`). The replicated world never contains puzzle data.
+- **Glyphs:** ☾ Mond, ✦ Stern, ☀ Sonne, ◎ Ring, ▲ Dreieck, ◆ Raute — always symbol, name and color together.
+
 ## 2. MVP / non-goals
 
 ### MVP deliverables
 
-- [ ] Simple lobby pairing and session creation for two players on the **same server**.
-- [ ] Secure role assignment, role switching and session state machine.
-- [ ] Two spatially separated chambers and 5 distinct, data-defined puzzle rooms.
-- [ ] Server-only solution and role-restricted clue distribution via `FireClient`.
-- [ ] Touch-friendly controls, symbol wheel, preset status pings and hint requests.
-- [ ] Per-room reset, checkpoints, disconnect and timeout handling.
-- [ ] Progress tracking: rooms cleared, hint usage and completion time per pair.
-- [ ] Tests for role isolation, server authorization, puzzle correctness, and multiplayer joins/leaves.
+- [x] Simple lobby pairing and session creation for two players on the **same server** (`PairingService`, FIFO).
+- [x] Secure role assignment, role switching and session state machine (`SessionManager`).
+- [x] Two spatially separated chambers and 5 distinct, data-defined puzzle rooms (`ChamberService`, `src/server/rooms`).
+- [x] Server-only solution and role-restricted clue distribution via `FireClient` (`RoleViewFactory`).
+- [x] Touch-friendly controls, symbol wheel, preset status pings and hint requests (`src/client/ui`).
+- [x] Per-room reset, checkpoints, disconnect and timeout handling (reconnect works when the player rejoins the same server).
+- [x] Progress tracking: rooms cleared, hint usage and completion time (`ProgressService`, guarded `UpdateAsync`).
+- [x] Tests for role isolation, server authorization, puzzle correctness, and multiplayer joins/leaves (`tests/`, simulated clients).
 
 ### Out of scope until validation
 
@@ -93,6 +124,8 @@ ActionRequest = { sessionId, roomId, actionType, controlId, actionValue, expecte
 StatusPing    = { sessionId, enumPingId }
 HintRequest   = { sessionId, roomId }
 ```
+
+Implemented `actionType` values: `stepDial`, `setDial`, `toggle`, `press`, `clearInput`, `submit` (Tinkerer only) and `reset` (either role). Lobby requests: `hello`, `queue`, `cancel`, `leave`, `requeue`.
 
 Only the **server** may compare an input to the hidden solution. It checks session membership, role, room, action type, control IDs/values, phase, cooldown and revision. Send back role-specific view models (`SeerView` or `TinkererView`). Distribute clues using targeted `RemoteEvent:FireClient(player, ...)` calls. The client is an untrusted view and input device.
 
@@ -179,27 +212,39 @@ stateDiagram-v2
 
 A `revision` guards against concurrent/stale control changes. Transition logic is deterministic, has no yielding calls in critical mutation sections, and issues role-specific updates **after** committing server state. Add idempotency for duplicate requests. A `SessionManager` owns player membership so a user cannot simultaneously control two sessions.
 
-## 6. Repository structure (target)
+## 6. Repository structure
 
 ```text
 whisperlatch/
 ├── README.md
-├── AGENTS.md
-├── rokit.toml
-├── default.project.json
-├── selene.toml
-├── .stylua.toml
-├── .luaurc
+├── AGENTS.md                    # rules for coding agents
+├── rokit.toml                   # pinned toolchain
+├── default.project.json         # Rojo tree (+ RemoteEvents)
+├── selene.toml / .stylua.toml / .luaurc
 ├── src/
-│   ├── shared/              # protocol types, safe ping enums, UI models
-│   ├── client/              # role UI, control input, pings, chamber view
-│   └── server/
-│       ├── logic/           # pure PuzzleEngine and room rule validation
-│       ├── rooms/           # server-only clue templates and goal rules
-│       └── services/        # Pairing, Sessions, RoleView, Hints, Progress
-├── tests/                   # roles, security, join/leave, five rooms
-├── scripts/                 # Lune test runner
-└── .gitlab-ci.yml
+│   ├── shared/                  # ReplicatedStorage.Shared
+│   │   ├── Types.luau           # protocol + view models
+│   │   ├── Protocol.luau        # remote names, action enums, limits
+│   │   ├── Glyphs.luau          # public glyph vocabulary
+│   │   ├── Pings.luau           # preset pings
+│   │   └── World.luau           # names of world instances
+│   ├── server/                  # ServerScriptService.Server
+│   │   ├── Main.server.luau     # wiring: remotes, players, world
+│   │   ├── logic/               # Rng, PuzzleEngine, Controls, RateLimiter (pure)
+│   │   ├── rooms/               # server-only room definitions (5 rooms)
+│   │   └── services/            # Pairing, SessionManager, RoleViewFactory,
+│   │                            # ActionGateway, Hint, Progress, ChamberService
+│   └── client/                  # StarterPlayerScripts.Client
+│       ├── Main.client.luau     # wiring: remotes -> UI
+│       ├── Net.luau             # requests + sequential action queue
+│       ├── ui/                  # Theme, Hud, CluePanel, ControlPanel, PingPanel, LobbyScreen
+│       └── world/ChamberDecor   # local-only wall panels and prompts
+├── tests/                       # Lune specs + Solver/Harness helpers
+├── scripts/
+│   ├── test.luau                # test runner
+│   ├── smoke.luau               # Roblox smoke test (world + UI)
+│   └── lib/FakeTree.luau        # Rojo-tree emulation for instance requires
+└── .github/workflows/ci.yml     # GitHub Actions
 ```
 
 ## 7. Tools and setup
@@ -215,10 +260,10 @@ whisperlatch/
 | Rokit | 1.2.0 | Toolchain management |
 | Rojo | 7.7.1 | Source filesystem ↔ Studio sync |
 | Lune | 0.11.0 | Pure-luau unit tests and contract tests |
-| Selene | 0.32.0 | Lint |
+| Selene | 0.31.0 (latest on crates.io) | Lint |
 | StyLua | 2.6.0 | Formatting |
 | Wally | 0.3.2, optional | Optional packages after license/security review |
-| Git / GitLab CI | Existing | Source control and CI |
+| Git / GitHub Actions | `.github/workflows/ci.yml` | Format, lint, tests, smoke test, place build |
 | Studio Server & Clients | Built in | Actual two-client simulation |
 | StudioTestService | Built in, optional | Programmatic multi-client plugin tests |
 
@@ -231,7 +276,7 @@ whisperlatch/
 rokit init
 rokit add rojo-rbx/rojo@7.7.1
 rokit add lune-org/lune@0.11.0
-rokit add Kampfkarren/selene@0.32.0
+rokit add Kampfkarren/selene@0.31.0
 rokit add JohnnyMorganz/StyLua@2.6.0
 # optional: rokit add UpliftGames/wally@0.3.2
 rokit install
@@ -239,20 +284,21 @@ rojo init
 rojo plugin install
 ```
 
-3. Map `src/shared` → `ReplicatedStorage`, `src/server` → `ServerScriptService`, `src/client` → `StarterPlayerScripts`. Never map `src/server/rooms` into replicated containers.
+3. Map `src/shared` → `ReplicatedStorage`, `src/server` → `ServerScriptService`, `src/client` → `StarterPlayerScripts` (done in `default.project.json`). Never map `src/server/rooms` into replicated containers.
 4. Add configs (`--!strict`, Selene, StyLua), test runner and CI; start `rojo serve` and connect Studio to the Rojo plugin.
 5. Enable **Assistant → MCP Servers → Studio as MCP Server → Quick Connect: Codex CLI**.
 6. In Studio run **Server & Clients** using two clients, not just a single local Play session.
-7. Once Codex generates the missing files, enforce:
+7. Before every commit (CI runs the same):
 
 ```powershell
-stylua --check src tests
+stylua --check src tests scripts
 selene src tests
 lune run scripts/test.luau
+lune run scripts/smoke.luau
 rojo build default.project.json --output build/whisperlatch.rbxlx
 ```
 
-This starter delivers only documentation. The source and test files referred to above are deliverables, **not currently included**.
+**How testing works without Studio:** game code uses normal Roblox instance requires (`require(script.Parent.X)`). `scripts/lib/FakeTree.luau` mirrors the Rojo tree for Lune, so the pure server modules run unchanged. `scripts/test.luau` runs the specs in `tests/` (puzzle generation and solvability, secrecy/non-interference of the role views, authorization, revisions, role swap, disconnect/timeout, payload validation, progress merge). `scripts/smoke.luau` builds the world and renders every role UI with Lune's Roblox instances, which validates all property names and types against the Roblox API. Real networking, physics, rendering and input still need a Studio playtest.
 
 ## 8. Security, accessibility, reliability
 
@@ -268,29 +314,31 @@ This starter delivers only documentation. The source and test files referred to 
 
 ## 9. Test plan / definition of done
 
-- [ ] Two users can pair and receive different roles. A third user cannot join their session.
-- [ ] Clue payload is **never** delivered to Tinkerer, including on join, reconnect and role swap.
-- [ ] Every room has at least one confirmed solution and valid server verification.
-- [ ] Wrong order, malformed args, spoofed role, stale revision and rapid-fire interactions are rejected.
-- [ ] Role swaps take effect exactly once per room.
-- [ ] Disconnect/reconnect, timeout, requeue and overlapping lobby requests do not orphan sessions.
-- [ ] All puzzles can be completed with **preset symbol/status pings only**, without voice chat.
-- [ ] 2-client testing verifies independent UI and server consistency under latency.
-- [ ] Keyboard, mouse and phone controls are functional and text is legible.
-- [ ] Lint, formatting, Lune unit tests and Rojo build pass in CI.
+- [x] Two users can pair and receive different roles. A third user cannot join their session. *(automated)*
+- [x] Clue payload is **never** delivered to Tinkerer, including on join, reconnect and role swap. *(automated, incl. non-interference tests per room)*
+- [x] Every room has at least one confirmed solution and valid server verification. *(automated, 300 seeds per room)*
+- [x] Wrong order, malformed args, spoofed role, stale revision and rapid-fire interactions are rejected. *(automated)*
+- [x] Role swaps take effect exactly once per room. *(automated)*
+- [x] Disconnect/reconnect, timeout, requeue and overlapping lobby requests do not orphan sessions. *(automated on the SessionManager level)*
+- [ ] All puzzles can be completed with **preset symbol/status pings only**, without voice chat. *(ping set covers symbols, numbers 1–12, AN/AUS, rules; needs playtest)*
+- [ ] 2-client testing verifies independent UI and server consistency under latency. *(Studio playtest pending)*
+- [ ] Keyboard, mouse and phone controls are functional and text is legible. *(Studio/device test pending)*
+- [x] Lint, formatting, Lune unit tests and Rojo build pass in CI.
 
-## 10. Codex implementation sequence
+## 10. Implementation sequence
 
-1. Scaffold pinned Rojo / Lune / strict Luau project and GitLab CI; add `AGENTS.md`.
-2. Implement `PuzzleEngine` for **Room 1 — Glyph Gate** as a pure module with tests.
-3. Implement server `PairingService`, `SessionManager`, role model and revisioned action protocol.
-4. Implement `RoleViewFactory` and test secret-leakage prevention.
-5. Build a tiny two-room scene with distinct Seer/Tinkerer UI; test two clients through Studio MCP and Server & Clients.
-6. Add preset symbol pings, reliable role switching, disconnect/rejoin, hints and room checkpoint.
-7. Implement four additional distinct puzzles and automate relevant multiplayer tests.
-8. Test mobile UI, accessibility, performance, and analytics before public beta.
+1. [x] Scaffold pinned Rojo / Lune / strict Luau project and CI (GitHub Actions); add `AGENTS.md`.
+2. [x] Implement `PuzzleEngine` for **Room 1 — Glyph Gate** as a pure module with tests.
+3. [x] Implement server `PairingService`, `SessionManager`, role model and revisioned action protocol.
+4. [x] Implement `RoleViewFactory` and test secret-leakage prevention.
+5. [x] Build the two-chamber scene with distinct Seer/Tinkerer UI. **Open:** test two clients through Studio MCP and Server & Clients.
+6. [x] Add preset symbol pings, reliable role switching, disconnect/rejoin, hints and room checkpoint.
+7. [x] Implement four additional distinct puzzles and automate relevant multiplayer tests (simulated clients).
+8. [ ] Test mobile UI, accessibility, performance, and analytics before public beta.
 
-**Codex starter instruction:** “Read README.md carefully. Implement Phase 1 only: the strict-Luau server-authoritative Session/Puzzle model for Glyph Gate and unit tests. Provide separate SeerView and TinkererView constructors, and tests ensuring solution secrecy and role checks. Do not implement custom text chat, cross-server matchmaking, monetization or voice dependencies.”
+**Next steps:** first Studio playtest (2 clients, then a phone), tune puzzle difficulty and texts, sounds and door/solve effects, art pass on the chambers, analytics.
+
+**Agent instructions:** see `AGENTS.md` (invariants, commands, how to add a room).
 
 ## 11. IP and release notes
 

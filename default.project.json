@@ -1,0 +1,47 @@
+{
+  "name": "WhisperLatch",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "Action": { "$className": "RemoteEvent" },
+        "Ping": { "$className": "RemoteEvent" },
+        "Hint": { "$className": "RemoteEvent" },
+        "Lobby": { "$className": "RemoteEvent" },
+        "View": { "$className": "RemoteEvent" },
+        "Notice": { "$className": "RemoteEvent" },
+        "PingFeed": { "$className": "RemoteEvent" },
+        "LobbyState": { "$className": "RemoteEvent" }
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMaxZoomDistance": 22
+      },
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future"
+      }
+    }
+  }
+}
